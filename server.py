@@ -1,5 +1,5 @@
 #  coding: utf-8 
-import socketserver
+import socketserver, re, os
 
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
@@ -26,21 +26,36 @@ import socketserver
 
 # try: curl -v -X GET http://127.0.0.1:8080/
 
+HOST, PORT = "localhost", 8080
 
 class MyWebServer(socketserver.BaseRequestHandler):
-    
+
+    def serve(self,header,body):
+        self.request.send(header.format(len(body)).encode("utf-8"))
+        self.request.send(body.encode("utf-8"))
+
     def handle(self):
+        self.url = "http://{0}:{1}/".format(HOST,PORT)
         self.data = self.request.recv(1024).strip()
+
+        root = "www/"
+        success_header = 'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n'
+
+        not_found_header = 'HTTP/1.1 404 Not found\r\nContent-Length: {}\r\n\r\n'
+        not_found_body = "404 Not Found"
+
         print ("Got a request of: %s\n" % self.data)
+        data = self.data.decode()
+        filepath = re.findall("(?<=GET /)(.*)(?= HTTP)",data)[0]
+        print(root+filepath)
+        if os.path.exists(root+filepath):
+            try:
+                with open(root+filepath,"r") as f: self.serve(success_header,f.read())
+            except IsADirectoryError:
+                with open(root+filepath+"index.html","r") as f: self.serve(success_header,f.read())
+        else: self.serve(not_found_header,not_found_body)
 
-        data = str(self.data.decode()).split("\n")
-        firstline = data[0].split("\r")
-        data[0] = firstline[0] + " 200 OK\r"
-        self.data = "\n".join(data).encode("utf-8")
-
-        self.request.sendall(self.data.upper())
 if __name__ == "__main__":
-    HOST, PORT = "localhost", 8080
 
     socketserver.TCPServer.allow_reuse_address = True
     # Create the server, binding to localhost on port 8080
