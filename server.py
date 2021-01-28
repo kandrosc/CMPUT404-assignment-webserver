@@ -35,11 +35,11 @@ class MyWebServer(socketserver.BaseRequestHandler):
         self.request.send(body.encode("utf-8"))
 
     def handle(self):
-        self.url = "http://{0}:{1}/".format(HOST,PORT)
+        self.url = "http://{0}:{1}".format(HOST,PORT)
         self.data = self.request.recv(1024).strip()
 
-        root = "www/"
-        success_header = 'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n'
+        root = "www"
+        success_header = 'HTTP/1.1 200 OK\r\nContent-Type: %s\r\nContent-Length: {}\r\n\r\n'
 
         not_found_header = 'HTTP/1.1 404 Not found\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n'
         not_found_body = "<html><head><title>404</title></head><body><p>404 page not found</p></body></html>"
@@ -47,20 +47,27 @@ class MyWebServer(socketserver.BaseRequestHandler):
         redirect_header = 'HTTP/1.1 301 Moved Permanently\r\nLocation: %s\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n'
         redirect_body = "<html><head><title>301</title></head><body><p>The page you requested has been moved:</p><a href=\"%s\">here</a></body></html>"
 
+        not_allowed_header = 'HTTP/1.1 405 Not allowed\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n'
+        not_allowed_body = "<html><head><title>405</title></head><body><p>405 Not allowed</p></body></html>"
+
         print ("Got a request of: %s\n" % self.data)
         data = self.data.decode()
-        path = re.findall("(?<=GET /)(.*)(?= HTTP)",data)[0]
-        fullpath = root + path
-        if os.path.exists(fullpath):
-            try:
-                with open(fullpath,"r") as f: self.serve(success_header,f.read())
-            except IsADirectoryError:
-                print(path)
-                if path[-1] == "/":
-                    with open(fullpath+"index.html","r") as f: self.serve(success_header,f.read())
-                else:
-                    self.serve(redirect_header % (self.url+path+"/"), redirect_body % (self.url+path+"/"))
-        else: self.serve(not_found_header,not_found_body)
+        response = re.findall("(?<=GET )(.*)(?= HTTP)",data)
+
+        if len(response) == 0: # regex cannot find 'GET' in response, therefore serve 405 response
+             self.serve(not_allowed_header, not_allowed_body)
+        else:
+            path = response[0]
+            fullpath = root + path
+            if os.path.exists(fullpath):
+                try:
+                    with open(fullpath,"r") as f: self.serve(success_header % ("text/css" if ".css" in path else "text/html"),f.read())
+                except IsADirectoryError:
+                    if path[-1] == "/":
+                        with open(fullpath+"index.html","r") as f: self.serve(success_header,f.read())
+                    else:
+                        self.serve(redirect_header % (self.url+path+"/"), redirect_body % (self.url+path+"/"))
+            else: self.serve(not_found_header,not_found_body)
 
 if __name__ == "__main__":
 
