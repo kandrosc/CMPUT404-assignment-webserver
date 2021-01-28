@@ -26,13 +26,19 @@ import socketserver, re, os
 
 # try: curl -v -X GET http://127.0.0.1:8080/
 
-HOST, PORT = "localhost", 8080
-
+HOST, PORT = "127.0.0.1", 8080
 class MyWebServer(socketserver.BaseRequestHandler):
 
     def serve(self,header,body):
         self.request.send(header.format(len(body)).encode("utf-8"))
         self.request.send(body.encode("utf-8"))
+
+    def get_allowed(self,rootname):
+        allowed = [rootname]
+        for root, dirs, files in os.walk(rootname, topdown=False):
+            for name in files: allowed.append(os.path.join(root, name))
+            for name in dirs: allowed.append(os.path.join(root, name))
+        return allowed
 
     def handle(self):
         self.url = "http://{0}:{1}".format(HOST,PORT)
@@ -53,13 +59,14 @@ class MyWebServer(socketserver.BaseRequestHandler):
         print ("Got a request of: %s\n" % self.data)
         data = self.data.decode()
         response = re.findall("(?<=GET )(.*)(?= HTTP)",data)
-
+        allowed = self.get_allowed(root+"/")
         if len(response) == 0: # regex cannot find 'GET' in response, therefore serve 405 response
              self.serve(not_allowed_header, not_allowed_body)
         else:
             path = response[0]
             fullpath = root + path
-            if os.path.exists(fullpath):
+            print(os.path.abspath(fullpath))
+            if os.path.exists(fullpath): # Abspath for directory checking?
                 try:
                     with open(fullpath,"r") as f: self.serve(success_header % ("text/css" if ".css" in path else "text/html"),f.read())
                 except IsADirectoryError:
