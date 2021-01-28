@@ -41,18 +41,25 @@ class MyWebServer(socketserver.BaseRequestHandler):
         root = "www/"
         success_header = 'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n'
 
-        not_found_header = 'HTTP/1.1 404 Not found\r\nContent-Length: {}\r\n\r\n'
-        not_found_body = "404 Not Found"
+        not_found_header = 'HTTP/1.1 404 Not found\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n'
+        not_found_body = "<html><head><title>404</title></head><body><p>404 page not found</p></body></html>"
+
+        redirect_header = 'HTTP/1.1 301 Moved Permanently\r\nLocation: %s\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n'
+        redirect_body = "<html><head><title>301</title></head><body><p>The page you requested has been moved:</p><a href=\"%s\">here</a></body></html>"
 
         print ("Got a request of: %s\n" % self.data)
         data = self.data.decode()
-        filepath = re.findall("(?<=GET /)(.*)(?= HTTP)",data)[0]
-        print(root+filepath)
-        if os.path.exists(root+filepath):
+        path = re.findall("(?<=GET /)(.*)(?= HTTP)",data)[0]
+        fullpath = root + path
+        if os.path.exists(fullpath):
             try:
-                with open(root+filepath,"r") as f: self.serve(success_header,f.read())
+                with open(fullpath,"r") as f: self.serve(success_header,f.read())
             except IsADirectoryError:
-                with open(root+filepath+"index.html","r") as f: self.serve(success_header,f.read())
+                print(path)
+                if path[-1] == "/":
+                    with open(fullpath+"index.html","r") as f: self.serve(success_header,f.read())
+                else:
+                    self.serve(redirect_header % (self.url+path+"/"), redirect_body % (self.url+path+"/"))
         else: self.serve(not_found_header,not_found_body)
 
 if __name__ == "__main__":
