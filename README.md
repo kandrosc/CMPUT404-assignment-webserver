@@ -24,7 +24,8 @@ examples thus some of the code is Copyright © 2001-2013 Python
 Software Foundation; All Rights Reserved under the PSF license (GPL
 compatible) http://docs.python.org/2/library/socketserver.html
 
-
+Raw source code can be found at:
+https://raw.githubusercontent.com/kandrosc/CMPUT404-assignment-webserver/master/server.py
 
 An example for pulling everything from a given directory is taken from:
 https://www.tutorialspoint.com/python/os_walk.htm
